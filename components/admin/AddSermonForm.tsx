@@ -21,7 +21,7 @@ const AddSermonForm: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch('http://localhost:3001/api/admin/sermons', {
+            const response = await fetch('/api/admin/sermons', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

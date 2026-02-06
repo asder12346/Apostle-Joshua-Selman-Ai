@@ -25,7 +25,7 @@ const SermonLibrary: React.FC = () => {
 
     const fetchSermons = async () => {
         try {
-            const response = await fetch('http://localhost:3001/api/admin/sermons');
+            const response = await fetch('/api/admin/sermons');
             const data = await response.json();
             setSermons(data);
         } catch (err) {
