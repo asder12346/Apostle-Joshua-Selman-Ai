@@ -1,0 +1,36 @@
+:root {
+  --app-bg: #0F0F0F;
+  --chat-bg: #1E1E1E;
+  --user-bubble: #343541;
+  --assistant-bubble: #1E1E1E;
+  --text-primary: #ECECEC;
+  --text-secondary: #9CA3AF;
+  --input-bg: #2A2A2A;
+  --input-border: #3F3F46;
+  --divider: #2A2A2A;
+  --button: #ECECEC;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--app-bg);
+  color: var(--text-primary);
+}
+
+.chat-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--input-border);
+  border-radius: 10px;
+}
