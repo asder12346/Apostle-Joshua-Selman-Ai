@@ -1,3 +1,4 @@
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -12,33 +13,43 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 3001;
-
 app.use(cors());
 app.use(express.json());
 
 const apiKey = process.env.GEMINI_API_KEY || '';
 const genAI = new GoogleGenerativeAI(apiKey);
 
-// Local storage for sermons
-const SERMONS_FILE = path.join(__dirname, 'sermons.json');
-
-// Initialize sermons file if it doesn't exist
-if (!fs.existsSync(SERMONS_FILE)) {
-    fs.writeFileSync(SERMONS_FILE, JSON.stringify([], null, 2));
-}
+// Handle sermons file with environment awareness
+const getSermonsPath = () => {
+    // In Vercel, we can only read from the included files.
+    // Locally, we might want to write.
+    return path.join(process.cwd(), 'sermons.json');
+};
 
 const getSermons = () => {
     try {
-        const data = fs.readFileSync(SERMONS_FILE, 'utf-8');
+        const filePath = getSermonsPath();
+        if (!fs.existsSync(filePath)) return [];
+        const data = fs.readFileSync(filePath, 'utf-8');
         return JSON.parse(data);
     } catch (err) {
+        console.error("Error reading sermons:", err);
         return [];
     }
 };
 
 const saveSermons = (sermons: any[]) => {
-    fs.writeFileSync(SERMONS_FILE, JSON.stringify(sermons, null, 2));
+    try {
+        const filePath = getSermonsPath();
+        // Vercel filesystem is read-only. We only attempt write if NOT in Vercel.
+        if (process.env.VERCEL) {
+            console.warn("Attempted to save sermons in Vercel environment. This is not supported on the serverless filesystem.");
+            return;
+        }
+        fs.writeFileSync(filePath, JSON.stringify(sermons, null, 2));
+    } catch (err) {
+        console.error("Error saving sermons:", err);
+    }
 };
 
 const SYSTEM_INSTRUCTION = `
@@ -76,6 +87,10 @@ CONTENT RULES (STRICT):
 app.post('/api/chat', async (req, res) => {
     const { prompt, history } = req.body;
 
+    if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY is not configured on the server." });
+    }
+
     try {
         const model = genAI.getGenerativeModel({
             model: "gemini-3-flash-preview",
@@ -83,7 +98,7 @@ app.post('/api/chat', async (req, res) => {
         });
 
         const chat = model.startChat({
-            history: history.map((m: any) => ({
+            history: (history || []).map((m: any) => ({
                 role: m.role === 'user' ? 'user' : 'model',
                 parts: [{ text: m.content }],
             })),
@@ -120,7 +135,6 @@ app.post('/api/chat', async (req, res) => {
     }
 });
 
-// Admin endpoints
 app.get('/api/admin/sermons', (req, res) => {
     res.json(getSermons());
 });
@@ -140,8 +154,8 @@ app.post('/api/admin/sermons', (req, res) => {
         sourceType,
         url,
         date,
-        tags: tags ? tags.split(',').map((t: string) => t.trim()) : [],
-        status: 'transcribing', // Default status
+        tags: tags ? (Array.isArray(tags) ? tags : tags.split(',').map((t: string) => t.trim())) : [],
+        status: 'transcribing',
         createdAt: new Date()
     };
 
@@ -151,8 +165,13 @@ app.post('/api/admin/sermons', (req, res) => {
     res.status(201).json(newSermon);
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
+// Explicit health check for debugging Vercel
+app.get('/api/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        env: process.env.VERCEL ? 'vercel' : 'local',
+        hasApiKey: !!apiKey
+    });
 });
 
 export default app;
